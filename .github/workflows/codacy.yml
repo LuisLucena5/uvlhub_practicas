@@ -11,6 +11,12 @@ on:
 jobs:
   codacy:
     runs-on: ubuntu-24.04
+    # 2. Verificar la compatibilidad del código con las versiones 3.13 y 3.14
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.13', '3.14']
+        
     services:
       mariadb:
         image: mariadb:12.0.2
@@ -31,16 +37,28 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v5
 
-    - name: Set up Python
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
       with:
-        python-version: '3.13'
+        python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -e ./rosemary
+
+    # 1. Añadir un paso que verifique si hay nuevas versiones de las dependencias instaladas
+    - name: Check for outdated dependencies
+      run: |
+        pip list --outdated
+      continue-on-error: true # Evita que el pipeline falle solo por haber actualizaciones disponibles
+
+    # 3. Realizar un análisis de seguridad con pip-audit
+    - name: Run security analysis with pip-audit
+      run: |
+        pip install pip-audit
+        pip-audit -r requirements.txt
 
     - name: Run tests with coverage
       run: |
@@ -54,6 +72,7 @@ jobs:
         MARIADB_USER: uvlhub_user
         MARIADB_PASSWORD: uvlhub_password
 
+    # Opcional: Subir coverage solo una vez para evitar duplicidades (usando la versión 3.13 como principal)
     - name: Upload coverage to Codacy
       run: bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r coverage.xml
       env:

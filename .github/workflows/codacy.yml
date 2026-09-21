@@ -47,10 +47,10 @@ jobs:
         pip list --outdated
       continue-on-error: true
 
-    - name: Check Python compatibility with Vermin
+    - name: Check Python compatibility
       run: |
         pip install vermin
-        vermin -t=3.13 -t=3.14 .
+        vermin --violation -t=3.13 -t=3.14 app/
 
     - name: Run security analysis with pip-audit
       run: |
